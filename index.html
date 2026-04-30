@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Pipelock Monitor</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0e0e10;
+      --surface:   #17171a;
+      --surface2:  #1f1f24;
+      --border:    #2a2a30;
+      --accent:    #00e5a0;
+      --accent-dim:#00e5a022;
+      --red:       #ff4d6a;
+      --red-dim:   #ff4d6a18;
+      --yellow:    #f5a623;
+      --yellow-dim:#f5a62318;
+      --green:     #00e5a0;
+      --green-dim: #00e5a018;
+      --text:      #e8e8ec;
+      --muted:     #6b6b78;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'IBM Plex Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 28px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+    .header h1 {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: var(--accent);
+    }
+    .header span {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 300;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+      align-self: center;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    /* ── Scan row ── */
+    .scan-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .label {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      border-radius: 6px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    select:hover { border-color: var(--accent); }
+
+    textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 14px 16px;
+      font-family: var(--mono);
+      font-size: 14px;
+      border-radius: 8px;
+      resize: vertical;
+      min-height: 100px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 12px;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    button.primary {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 11px 28px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    button.primary:hover  { opacity: 0.88; }
+    button.primary:active { transform: scale(0.97); }
+
+    button.secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 9px 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    button.secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    input[type="text"], input:not([type]) {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    /* ── Result card ── */
+    #resultCard {
+      display: none;
+      margin: 20px 0;
+      padding: 20px 24px;
+      border-radius: 10px;
+      border-left: 3px solid var(--accent);
+      background: var(--surface);
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .result-verdict {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .result-row {
+      display: flex;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .result-row strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Section card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px 24px;
+      margin-top: 24px;
+    }
+    .card-title {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Rule editor inputs ── */
+    .rule-inputs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .rule-inputs input { flex: 1; min-width: 120px; }
+    .rule-inputs input.wide { flex: 2; min-width: 200px; }
+
+    /* ── Rules list ── */
+    #rulesList {
+      margin-top: 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .rule-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 6px;
+      background: var(--surface2);
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+    }
+    .rule-num  { color: var(--muted); min-width: 18px; }
+    .rule-name { color: var(--text); font-weight: 600; flex: 1; }
+    .rule-regex { color: var(--muted); flex: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Activity log ── */
+    #history {
+      max-height: 180px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    #history::-webkit-scrollbar { width: 4px; }
+    #history::-webkit-scrollbar-track { background: transparent; }
+    #history::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .log-line {
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    .log-line:last-child { border-bottom: none; }
+    .empty-log { color: var(--muted); font-style: italic; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="dot"></div>
+    <h1>pipelock</h1>
+    <span>data leak monitor</span>
+  </div>
+
+  <!-- Scan type -->
+  <div class="label">Scan Type</div>
+  <div class="scan-row">
+    <select id="scanType">
+      <option value="url">URL</option>
+      <option value="text">Text</option>
+    </select>
+  </div>
+
+  <!-- Input -->
+  <div class="label">Input</div>
+  <textarea id="inputData" placeholder="Paste a URL or text to scan..."></textarea>
+
+  <button class="primary" onclick="scanInput()">Scan</button>
+
+  <!-- Result card -->
+  <div id="resultCard">
+    <div class="result-verdict" id="verdictText">—</div>
+    <div class="result-row"><strong>Reason</strong> <span id="reasonText">—</span></div>
+    <div class="result-row"><strong>Severity</strong> <span id="severityText">—</span></div>
+  </div>
+
+  <!-- Rule editor -->
+  <div class="card">
+    <div class="card-title">Rule Editor</div>
+    <div class="rule-inputs">
+      <input id="ruleName"  placeholder="rule name" type="text" />
+      <input id="ruleRegex" placeholder="regex pattern" type="text" class="wide" />
+      <select id="ruleSeverity">
+        <option value="high">high</option>
+        <option value="medium">medium</option>
+        <option value="low">low</option>
+      </select>
+      <select id="ruleAction">
+        <option value="block">block</option>
+        <option value="warn">warn</option>
+        <option value="allow">allow</option>
+      </select>
+      <button class="secondary" onclick="addRule()">+ Add Rule</button>
+    </div>
+    <div id="rulesList"></div>
+  </div>
+
+  <!-- Activity log -->
+  <div class="card">
+    <div class="card-title">Live Activity</div>
+    <div id="history"><div class="log-line empty-log">No activity yet.</div></div>
+  </div>
+
+  <script>
+    const fs   = require('fs');
+    const path = require('path');
+
+    // ── Rules helpers ────────────────────────────────────────────────────
+
+    function loadRules() {
+      const rulesPath = path.join(process.cwd(), 'rules.json');
+      try {
+        return JSON.parse(fs.readFileSync(rulesPath, 'utf8'));
+      } catch (e) { return []; }
+    }
+
+    function saveRules(rules) {
+      const rulesPath = path.join(process.cwd(), 'rules.json');
+      fs.writeFileSync(rulesPath, JSON.stringify(rules, null, 2), 'utf8');
+    }
+
+    function matchCustomRule(input, rules) {
+      for (const rule of rules) {
+        try {
+          if (new RegExp(rule.regex).test(input)) return rule;
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    // ── Rule editor ──────────────────────────────────────────────────────
+
+    function renderRules() {
+      const rules = loadRules();
+      const el = document.getElementById('rulesList');
+      if (!rules.length) {
+        el.innerHTML = '<div class="rule-item"><span class="empty-log">No rules yet. Add one above.</span></div>';
+        return;
+      }
+      el.innerHTML = rules.map((r, i) => {
+        const badgeColor = r.action === 'block' ? 'var(--red)' : r.action === 'warn' ? 'var(--yellow)' : 'var(--accent)';
+        const badgeBg    = r.action === 'block' ? 'var(--red-dim)' : r.action === 'warn' ? 'var(--yellow-dim)' : 'var(--green-dim)';
+        return `
+          <div class="rule-item">
+            <span class="rule-num">${i + 1}</span>
+            <span class="rule-name">${r.name}</span>
+            <span class="badge" style="color:${badgeColor};background:${badgeBg}">${r.action.toUpperCase()}</span>
+            <span class="badge" style="color:var(--muted);background:var(--surface2)">${r.severity}</span>
+          </div>`;
+      }).join('');
+    }
+
+    function addRule() {
+      const name     = document.getElementById('ruleName').value.trim();
+      const regex    = document.getElementById('ruleRegex').value.trim();
+      const severity = document.getElementById('ruleSeverity').value;
+      const action   = document.getElementById('ruleAction').value;
+
+      if (!name || !regex) { alert('Please enter both a rule name and a regex.'); return; }
+      try { new RegExp(regex); } catch (e) { alert('Invalid regex: ' + e.message); return; }
+
+      const rules = loadRules();
+      rules.push({ name, regex, severity, action });
+      saveRules(rules);
+      renderRules();
+
+      document.getElementById('ruleName').value  = '';
+      document.getElementById('ruleRegex').value = '';
+    }
+
+    // ── History log ──────────────────────────────────────────────────────
+
+    function addToHistory(verdict, input) {
+      const history = document.getElementById('history');
+      const empty = history.querySelector('.empty-log');
+      if (empty) empty.remove();
+
+      const v = verdict.toUpperCase();
+      const color = v.includes('BLOCKED') ? 'var(--red)' : v.includes('WARNING') ? 'var(--yellow)' : 'var(--accent)';
+
+      const now = new Date();
+      const ts  = now.toTimeString().slice(0, 8);
+
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML =
+        '<span style="color:var(--muted);margin-right:8px">' + ts + '</span>' +
+        '<span style="color:' + color + ';font-weight:600">[' + verdict + ']</span> ' +
+        '<span style="color:var(--muted)">' + input + '</span>';
+      history.prepend(line);
+    }
+
+    // ── Scanner ──────────────────────────────────────────────────────────
+
+    function scanInput() {
+      const input = document.getElementById('inputData').value.trim();
+      if (!input) return;
+
+      const resultCard   = document.getElementById('resultCard');
+      const verdictText  = document.getElementById('verdictText');
+      const reasonText   = document.getElementById('reasonText');
+      const severityText = document.getElementById('severityText');
+
+      const rules       = loadRules();
+      const matchedRule = matchCustomRule(input, rules);
+
+      let verdict, reason, severity, accentColor, bgColor;
+
+      if (matchedRule) {
+        const action = (matchedRule.action || 'block').toLowerCase();
+        severity = matchedRule.severity || 'high';
+        reason   = matchedRule.name;
+        if      (action === 'warn')  { verdict = 'WARNING'; accentColor = 'var(--yellow)'; bgColor = 'var(--yellow-dim)'; }
+        else if (action === 'allow') { verdict = 'ALLOWED';  accentColor = 'var(--green)';  bgColor = 'var(--green-dim)'; }
+        else                         { verdict = 'BLOCKED';  accentColor = 'var(--red)';    bgColor = 'var(--red-dim)'; }
+      } else {
+        verdict = 'ALLOWED'; reason = 'No rules matched'; severity = 'none';
+        accentColor = 'var(--green)'; bgColor = 'var(--green-dim)';
+      }
+
+      verdictText.innerText    = verdict;
+      verdictText.style.color  = accentColor;
+      reasonText.innerText     = reason;
+      severityText.innerText   = severity;
+      resultCard.style.display = 'block';
+      resultCard.style.borderLeftColor = accentColor;
+      resultCard.style.background      = bgColor;
+
+      addToHistory(verdict, input);
+    }
+
+    // ── Cursor log watcher ───────────────────────────────────────────────
+
+    function watchCursorLog() {
+      const logPath = path.join(process.env.USERPROFILE, '.cursor', 'cursor-hook-events.log');
+
+      if (!fs.existsSync(logPath)) {
+        addToHistory('INFO', 'Cursor log not found — retrying...');
+        setTimeout(watchCursorLog, 3000);
+        return;
+      }
+
+      let lastSize = fs.statSync(logPath).size;
+
+      function checkForNewContent() {
+        try {
+          const stat = fs.statSync(logPath);
+          if (stat.size <= lastSize) return;
+
+          const buf = Buffer.alloc(stat.size - lastSize);
+          const fd  = fs.openSync(logPath, 'r');
+          fs.readSync(fd, buf, 0, buf.length, lastSize);
+          fs.closeSync(fd);
+          lastSize = stat.size;
+
+          const chunk  = buf.toString('utf8');
+          const blocks = chunk.split('==== CURSOR EVENT ====').map(x => x.trim()).filter(Boolean);
+
+          blocks.forEach(block => {
+            const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+            let readingInput = false, readingOutput = false;
+            let inputText = '', outputText = '';
+
+            lines.forEach(line => {
+              if (line === 'INPUT:')  { readingInput = true;  readingOutput = false; return; }
+              if (line === 'OUTPUT:') { readingInput = false; readingOutput = true;  return; }
+              if (readingInput)  inputText  += line;
+              if (readingOutput) outputText += line;
+            });
+
+            let inputJson = null, outputJson = null;
+            try { inputJson  = JSON.parse(inputText);  } catch (e) {}
+            try { outputJson = JSON.parse(outputText); } catch (e) {}
+
+            const command    = inputJson?.command || inputJson?.tool_input || 'unknown command';
+            const eventName  = inputJson?.hook_event_name || inputJson?.event || 'unknown event';
+            const permission = outputJson?.permission?.toUpperCase() || 'UNKNOWN';
+            const verdict    = permission.includes('DENY') ? 'BLOCKED' : permission.includes('ALLOW') ? 'ALLOWED' : 'UNKNOWN';
+
+            addToHistory('CURSOR ' + verdict, eventName + ' → ' + command);
+          });
+        } catch (e) {
+          console.error('watcher error:', e);
+        }
+      }
+
+      // Poll every 1 second — reliable on Windows
+      setInterval(checkForNewContent, 1000);
+    }
+
+    // ── HTTP server for Cursor hooks ─────────────────────────────────────
+
+    function startHookServer() {
+      const http = require('http');
+
+      const server = http.createServer((req, res) => {
+        if (req.method === 'POST' && req.url === '/hook') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', () => {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end('{"ok":true}');
+
+            let inputJson = null;
+            try { inputJson = JSON.parse(body); } catch (e) {}
+
+            const command   = inputJson?.command || inputJson?.tool_input || 'unknown command';
+            const eventName = inputJson?.hook_event_name || inputJson?.event || 'unknown event';
+
+            // Match against rules
+            const rules       = loadRules();
+            const matchedRule = matchCustomRule(command || body, rules);
+
+            let verdict;
+            if (matchedRule) {
+              const action = (matchedRule.action || 'block').toLowerCase();
+              if      (action === 'warn')  verdict = 'WARNING';
+              else if (action === 'allow') verdict = 'ALLOWED';
+              else                         verdict = 'BLOCKED';
+            } else {
+              verdict = 'ALLOWED';
+            }
+
+            addToHistory('CURSOR ' + verdict, eventName + ' → ' + command);
+          });
+        } else {
+          res.writeHead(404);
+          res.end();
+        }
+      });
+
+      server.listen(9001, '127.0.0.1', () => {
+        console.log('Pipelock hook server listening on port 9001');
+      });
+
+      server.on('error', (e) => {
+        console.error('Hook server error:', e.message);
+      });
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────
+    renderRules();
+    watchCursorLog();
+    startHookServer();
+  </script>
+</body>
+</html>
