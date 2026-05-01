@@ -1,4 +1,4 @@
-# pipelock-ui
+# dlp-monitor
 
 Real-time DLP monitor for AI coding assistants (Cursor, Claude Code).
 
