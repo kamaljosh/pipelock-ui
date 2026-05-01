@@ -22,8 +22,9 @@ pipelock intercepts → blocks → UI shows `[CURSOR BLOCKED]` instantly.
 
 1. Install [pipelock](https://github.com/luckyPipewrench/pipelock)
 2. Copy `hook-fire.ps1` to `C:\Users\<you>\.cursor\`
-3. Add `hooks.json` to `.cursor/` (see file for config)
-4. `npm install && npm start`
+3. Copy `hooks.json` to `C:\Users\<you>\.cursor\`
+4. Edit paths in `hook-fire.ps1` to match your pipelock install location
+5. `npm install && npm start`
 
 ## Stack
 
