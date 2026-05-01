@@ -455,9 +455,7 @@
     // ── Cursor log watcher ───────────────────────────────────────────────
 
     function watchCursorLog() {
-      const logPath = path.join(process.env.USERPROFILE, '.cursor', 'cursor-hook-events.log');
-
-      if (!fs.existsSync(logPath)) {
+      const logPath = path.join(process.env.USERPROFILE, '.cursor', 'cursor-hook-events.log');      if (!fs.existsSync(logPath)) {
         addToHistory('INFO', 'Cursor log not found — retrying...');
         setTimeout(watchCursorLog, 3000);
         return;
@@ -480,28 +478,41 @@
           const blocks = chunk.split('==== CURSOR EVENT ====').map(x => x.trim()).filter(Boolean);
 
           blocks.forEach(block => {
-            const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
-            let readingInput = false, readingOutput = false;
-            let inputText = '', outputText = '';
+  // Grab everything after INPUT: up to OUTPUT: or end of block
+  const inputMatch  = block.match(/INPUT:\s*\r?\n?([\s\S]*?)(?=OUTPUT:|$)/);
+  const outputMatch = block.match(/OUTPUT:\s*\r?\n?([\s\S]*?)$/);
 
-            lines.forEach(line => {
-              if (line === 'INPUT:')  { readingInput = true;  readingOutput = false; return; }
-              if (line === 'OUTPUT:') { readingInput = false; readingOutput = true;  return; }
-              if (readingInput)  inputText  += line;
-              if (readingOutput) outputText += line;
-            });
+  let inputJson = null, outputJson = null;
 
-            let inputJson = null, outputJson = null;
-            try { inputJson  = JSON.parse(inputText);  } catch (e) {}
-            try { outputJson = JSON.parse(outputText); } catch (e) {}
+  if (inputMatch) {
+    // Strip any non-JSON prefix chars (e.g. n++ garbage bytes)
+    const clean = inputMatch[1].replace(/^[^{]*/, '').trim();
+    try { inputJson = JSON.parse(clean); }
+    catch (e) { console.error('INPUT parse fail:', e.message, '|', clean.slice(0, 80)); }
+  }
 
-            const command    = inputJson?.command || inputJson?.tool_input || 'unknown command';
-            const eventName  = inputJson?.hook_event_name || inputJson?.event || 'unknown event';
-            const permission = outputJson?.permission?.toUpperCase() || 'UNKNOWN';
-            const verdict    = permission.includes('DENY') ? 'BLOCKED' : permission.includes('ALLOW') ? 'ALLOWED' : 'UNKNOWN';
+  if (outputMatch) {
+    const clean = outputMatch[1].replace(/^[^{]*/, '').trim();
+    try { outputJson = JSON.parse(clean); }
+    catch (e) { console.error('OUTPUT parse fail:', e.message, '|', clean.slice(0, 80)); }
+  }
 
-            addToHistory('CURSOR ' + verdict, eventName + ' → ' + command);
-          });
+  const command    = inputJson?.command || inputJson?.tool_input || 'unknown command';
+  const eventName  = inputJson?.hook_event_name || inputJson?.event || 'unknown event';
+  const permission = outputJson?.permission?.toUpperCase() || 'UNKNOWN';
+  const verdict    = permission.includes('DENY')  ? 'BLOCKED'
+                   : permission.includes('ALLOW') ? 'ALLOWED'
+                   : 'SCANNED';
+
+  // Also run against your custom rules
+  const rules       = loadRules();
+  const matchedRule = matchCustomRule(command, rules);
+  const finalVerdict = matchedRule
+    ? (matchedRule.action === 'warn' ? 'WARNING' : matchedRule.action === 'allow' ? 'ALLOWED' : 'BLOCKED')
+    : verdict;
+
+  addToHistory('CURSOR ' + finalVerdict, eventName + ' → ' + command);
+});
         } catch (e) {
           console.error('watcher error:', e);
         }
